@@ -1,7 +1,7 @@
 import axios from 'axios';
 import useAuthStore from '../store/authStore';
 
-const API_URL = "https://intelli-quiz-backend-sc79.vercel.app/api";
+const API_URL = "https://intelliquiz-backend-4bha.onrender.com/api";
 
 const api = axios.create({
   baseURL: API_URL,
