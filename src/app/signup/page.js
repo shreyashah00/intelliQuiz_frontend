@@ -3,6 +3,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, Mail, User, Lock, UserCheck, GraduationCap, Brain, CheckCircle } from 'lucide-react';
+import { authAPI } from '../../utils/api';
 
 export default function SignUp() {
   const [formData, setFormData] = useState({
@@ -44,26 +45,13 @@ export default function SignUp() {
     }
 
     try {
-      const response = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData)
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setMessage('Registration successful! Please check your email for OTP verification.');
-        setTimeout(() => {
-          router.push('/verify-otp');
-        }, 2000);
-      } else {
-        setMessage(data.message || 'Registration failed');
-      }
+      await authAPI.register(formData);
+      setMessage('Registration successful! Please check your email for OTP verification.');
+      setTimeout(() => {
+        router.push('/verify-otp');
+      }, 2000);
     } catch (error) {
-      setMessage('Network error. Please try again.');
+      setMessage(error.response?.data?.message || 'Registration failed');
       console.error('Registration error:', error);
     } finally {
       setLoading(false);
