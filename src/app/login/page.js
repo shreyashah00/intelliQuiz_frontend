@@ -29,6 +29,8 @@ export default function LoginPage() {
         const userRole = response.data.data.user.Role;
         if (userRole === 'teacher') {
           router.push('/teacher');
+        } else if(userRole === 'admin'){
+          router.push("/admin")
         } else {
           router.push('/student');
         }
