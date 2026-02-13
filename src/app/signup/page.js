@@ -48,7 +48,7 @@ export default function SignUp() {
       await authAPI.register(formData);
       setMessage('Registration successful! Please check your email for OTP verification.');
       setTimeout(() => {
-        router.push('/verify-otp');
+        router.push(`/verify-otp?email=${encodeURIComponent(formData.Email)}`);
       }, 2000);
     } catch (error) {
       setMessage(error.response?.data?.message || 'Registration failed');

@@ -22,7 +22,11 @@ import {
   ChevronDown,
   Home,
   Users,
-  Trophy
+  Trophy,
+  Shield,
+  BarChart3,
+  UserCog,
+  FileQuestion
 } from 'lucide-react';
 
 export default function DashboardLayout({ children, role }) {
@@ -52,7 +56,16 @@ export default function DashboardLayout({ children, role }) {
     { name: 'Profile', href: '/student/profile', icon: User },
   ];
 
-  const navItems = role === 'teacher' ? teacherNavItems : studentNavItems;
+  const adminNavItems = [
+    { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
+    { name: 'User Management', href: '/admin/users', icon: UserCog },
+    { name: 'System Stats', href: '/admin/stats', icon: BarChart3 },
+    { name: 'Quiz Oversight', href: '/admin/quizzes', icon: BookOpen },
+    { name: 'Question Review', href: '/admin/questions', icon: FileQuestion },
+    { name: 'Profile', href: '/admin/profile', icon: User },
+  ];
+
+  const navItems = role === 'admin' ? adminNavItems : (role === 'teacher' ? teacherNavItems : studentNavItems);
 
   const handleLogout = async () => {
     await logout();
