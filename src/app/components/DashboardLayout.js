@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import useAuthStore from '../../store/authStore';
@@ -36,6 +36,23 @@ export default function DashboardLayout({ children, role }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileDropdown, setProfileDropdown] = useState(false);
+
+  // Close sidebar on mobile by default
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 1024) {
+        setSidebarOpen(false);
+      } else {
+        setSidebarOpen(true);
+      }
+    };
+    
+    // Set initial state
+    handleResize();
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const teacherNavItems = [
     { name: 'Dashboard', href: '/teacher', icon: LayoutDashboard },
@@ -74,9 +91,17 @@ export default function DashboardLayout({ children, role }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-white">
+      {/* Mobile Overlay */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-xl border-b border-blue-200/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo and brand */}
             <div className="flex items-center space-x-4">
@@ -84,7 +109,7 @@ export default function DashboardLayout({ children, role }) {
                 onClick={() => setSidebarOpen(!sidebarOpen)}
                 className="p-2 text-gray-700 rounded-xl hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
               >
-                <Menu className="w-6 h-6" />
+                {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
               </button>
               
               <div className="flex items-center space-x-3">
@@ -165,8 +190,15 @@ export default function DashboardLayout({ children, role }) {
       {/* Sidebar */}
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 transition-transform duration-300 transform ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-      } bg-white/95 backdrop-blur-xl border-r border-blue-200/50 lg:translate-x-0`}>
-        <div className="h-full px-3 pb-4 overflow-y-auto pt-20">
+      } bg-white/95 backdrop-blur-xl border-r border-blue-200/50 shadow-2xl`}>
+        <div className="h-full px-3 pb-4 overflow-y-auto pt-24">{/* Close button for mobile */}
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="lg:hidden absolute top-4 right-4 p-2 text-gray-700 rounded-xl hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+
           <ul className="space-y-2 font-medium">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -176,6 +208,12 @@ export default function DashboardLayout({ children, role }) {
                 <li key={item.name}>
                   <Link
                     href={item.href}
+                    onClick={() => {
+                      // Close sidebar on mobile when clicking a link
+                      if (window.innerWidth < 1024) {
+                        setSidebarOpen(false);
+                      }
+                    }}
                     className={`flex items-center p-3 rounded-xl transition-all group ${
                       isActive
                         ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/25'
@@ -213,9 +251,9 @@ export default function DashboardLayout({ children, role }) {
       </aside>
 
       {/* Main Content */}
-      <div className={`transition-all duration-300 ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-0'}`}>
-        <main className="pt-20 p-6">
-          <div className="max-w-7xl mx-auto">
+      <div className={`transition-all duration-300 ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-0'} min-h-screen`}>
+        <main className="pt-20 px-4 sm:px-6 pb-6">
+          <div className="max-w-7xl mx-auto mt-6">
             {children}
           </div>
         </main>
