@@ -21,7 +21,6 @@ import {
 
 export default function QuizOversight() {
   const [quizzes, setQuizzes] = useState([]);
-  const [filteredQuizzes, setFilteredQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -34,20 +33,34 @@ export default function QuizOversight() {
     fetchQuizzes();
   }, []);
 
-  useEffect(() => {
-    filterQuizzes();
-  }, [searchTerm, difficultyFilter, statusFilter, quizzes]);
+  // Compute filtered quizzes on render
+  const getFilteredQuizzes = () => {
+    let filtered = [...quizzes];
+    if (searchTerm) {
+      filtered = filtered.filter(quiz =>
+        quiz.Title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        quiz.Description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        quiz.Subject?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        quiz.Creator?.Username?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    if (difficultyFilter !== 'all') {
+      filtered = filtered.filter(quiz => quiz.Difficulty === difficultyFilter);
+    }
+    if (statusFilter !== 'all') {
+      const isPublished = statusFilter === 'published';
+      filtered = filtered.filter(quiz => quiz.IsPublished === isPublished);
+    }
+    return filtered;
+  };
 
   const fetchQuizzes = async () => {
     try {
       setLoading(true);
       setError(null);
-      
       const response = await adminAPI.getAllQuizzes();
-      
       if (response.data.success) {
         setQuizzes(response.data.data);
-        setFilteredQuizzes(response.data.data);
       } else {
         setError(response.data.message || 'Failed to fetch quizzes');
       }
@@ -57,33 +70,6 @@ export default function QuizOversight() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const filterQuizzes = () => {
-    let filtered = [...quizzes];
-
-    // Search filter
-    if (searchTerm) {
-      filtered = filtered.filter(quiz =>
-        quiz.Title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        quiz.Description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        quiz.Subject?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        quiz.Creator?.Username?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    // Difficulty filter
-    if (difficultyFilter !== 'all') {
-      filtered = filtered.filter(quiz => quiz.Difficulty === difficultyFilter);
-    }
-
-    // Status filter
-    if (statusFilter !== 'all') {
-      const isPublished = statusFilter === 'published';
-      filtered = filtered.filter(quiz => quiz.IsPublished === isPublished);
-    }
-
-    setFilteredQuizzes(filtered);
   };
 
   const openDetailsModal = (quiz) => {
@@ -244,13 +230,13 @@ export default function QuizOversight() {
             </div>
 
             <div className="mt-4 flex items-center gap-4 text-sm text-gray-600">
-              <span>Showing {filteredQuizzes.length} of {quizzes.length} quizzes</span>
+              <span>Showing {getFilteredQuizzes().length} of {quizzes.length} quizzes</span>
             </div>
           </div>
 
           {/* Quizzes List */}
           <div className="grid grid-cols-1 gap-6">
-            {filteredQuizzes.map((quiz) => (
+            {getFilteredQuizzes().map((quiz) => (
               <div
                 key={quiz.QuizID}
                 className="bg-white rounded-2xl shadow-lg border border-gray-200/50 overflow-hidden hover:shadow-xl transition-all"
@@ -332,7 +318,7 @@ export default function QuizOversight() {
               </div>
             ))}
 
-            {filteredQuizzes.length === 0 && (
+            {getFilteredQuizzes().length === 0 && (
               <div className="text-center py-12">
                 <BookOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">No quizzes found</h3>
