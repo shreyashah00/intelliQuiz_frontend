@@ -163,8 +163,8 @@ export default function QuestionBankPage() {
       render: (_, record) => (
         <Button
           type="link"
-          onClick={() => router.push(`/quiz/${record.quiz.quizId}`)}
-        >
+           onClick={() => router.push(`/teacher/quiz-management/edit/${record.quiz.QuizID || record.quiz.quizId || record.quiz.id || record.quizId}`)}
+          >
           View Quiz
         </Button>
       ),

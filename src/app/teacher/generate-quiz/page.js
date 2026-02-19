@@ -18,7 +18,9 @@ import {
   theme,
   Divider,
   Space,
-  Progress
+  Progress,
+  Form,
+  Radio
 } from 'antd';
 import {
   RobotOutlined,
@@ -32,9 +34,12 @@ import {
   ClockCircleOutlined,
   ThunderboltOutlined,
   BulbOutlined,
-  BookOutlined
+  BookOutlined,
+  DeleteOutlined,
+  PlusOutlined,
+  EditOutlined
 } from '@ant-design/icons';
-import { Brain, FileText, Sparkles, Wand2, Settings, Plus, Minus, CheckCircle, Upload } from 'lucide-react';
+import { Brain, FileText, Sparkles, Wand2, Settings, Plus, Minus, CheckCircle, Upload, Trash2, Edit3 } from 'lucide-react';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import DashboardLayout from '../../components/DashboardLayout';
 import { fileAPI, quizAPI } from '../../../utils/api';
@@ -52,6 +57,9 @@ export default function GenerateQuizPage() {
   const [saving, setSaving] = useState(false);
   const [generatedQuiz, setGeneratedQuiz] = useState(null);
   const [previewVisible, setPreviewVisible] = useState(false);
+  const [editingQuestionIndex, setEditingQuestionIndex] = useState(null);
+  const [questionForm, setQuestionForm] = useState(null);
+  const [isAddingQuestion, setIsAddingQuestion] = useState(false);
   
   const [quizConfig, setQuizConfig] = useState({
     title: '',
@@ -144,6 +152,97 @@ export default function GenerateQuizPage() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleAddQuestion = () => {
+    setIsAddingQuestion(true);
+    setQuestionForm({
+      question: '',
+      options: ['', '', '', ''],
+      correctAnswer: 0,
+      explanation: ''
+    });
+  };
+
+  const handleEditQuestion = (index) => {
+    const question = generatedQuiz.questions[index];
+    setEditingQuestionIndex(index);
+    setQuestionForm({
+      question: question.question,
+      options: [...question.options],
+      correctAnswer: question.correctAnswer,
+      explanation: question.explanation || ''
+    });
+  };
+
+  const handleDeleteQuestion = (index) => {
+    Modal.confirm({
+      title: 'Delete Question',
+      content: 'Are you sure you want to delete this question?',
+      okText: 'Delete',
+      okType: 'danger',
+      onOk: () => {
+        const updatedQuestions = generatedQuiz.questions.filter((_, i) => i !== index);
+        setGeneratedQuiz({
+          ...generatedQuiz,
+          questions: updatedQuestions
+        });
+        message.success('Question deleted successfully');
+      }
+    });
+  };
+
+  const handleSaveQuestion = () => {
+    if (!questionForm.question.trim()) {
+      message.error('Please enter a question');
+      return;
+    }
+
+    if (questionForm.options.some(opt => !opt.trim())) {
+      message.error('Please fill in all options');
+      return;
+    }
+
+    const updatedQuestions = [...generatedQuiz.questions];
+    
+    if (isAddingQuestion) {
+      updatedQuestions.push(questionForm);
+      message.success('Question added successfully');
+    } else {
+      updatedQuestions[editingQuestionIndex] = questionForm;
+      message.success('Question updated successfully');
+    }
+
+    setGeneratedQuiz({
+      ...generatedQuiz,
+      questions: updatedQuestions
+    });
+
+    setEditingQuestionIndex(null);
+    setIsAddingQuestion(false);
+    setQuestionForm(null);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingQuestionIndex(null);
+    setIsAddingQuestion(false);
+    setQuestionForm(null);
+  };
+
+  const updateQuestionFormField = (field, value) => {
+    setQuestionForm({
+      ...questionForm,
+      [field]: value
+    });
+  };
+
+  const updateQuestionOption = (index, value) => {
+    const updatedOptions = [...questionForm.options];
+    updatedOptions[index] = value;
+    setQuestionForm({
+      ...questionForm,
+      options: updatedOptions
+    });
   };
 
   const canProceed = () => {
@@ -404,54 +503,35 @@ export default function GenerateQuizPage() {
                         </Option>
                       </Select>
                     </div>
-                  </div>
 
-                  <Divider className="border-gray-200" />
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div>
-                      <label className="block text-gray-700 font-medium mb-4">
-                        Number of Questions: <span className="text-blue-600 font-bold">{quizConfig.numberOfQuestions}</span>
-                      </label>
-                      <Slider
+                      <label className="block text-gray-700 font-medium mb-2">Number of Questions</label>
+                      <Input
+                        type="number"
                         min={5}
                         max={50}
                         value={quizConfig.numberOfQuestions}
-                        onChange={(value) => handleConfigChange('numberOfQuestions', value)}
-                        marks={{
-                          5: '5',
-                          15: '15',
-                          30: '30',
-                          50: '50',
-                        }}
+                        onChange={(e) => handleConfigChange('numberOfQuestions', parseInt(e.target.value) || 5)}
+                        size="large"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-gray-700 font-medium mb-4">
-                        Time Limit: <span className="text-blue-600 font-bold">{quizConfig.timeLimit} minutes</span>
-                      </label>
-                      <Slider
+                      <label className="block text-gray-700 font-medium mb-2">Time Limit (Minutes)</label>
+                      <Input
+                        type="number"
                         min={5}
-                        max={120}
+                        max={180}
                         value={quizConfig.timeLimit}
-                        onChange={(value) => handleConfigChange('timeLimit', value)}
-                        marks={{
-                          5: '5m',
-                          30: '30m',
-                          60: '1h',
-                          120: '2h',
-                        }}
+                        onChange={(e) => handleConfigChange('timeLimit', parseInt(e.target.value) || 10)}
+                        size="large"
                       />
                     </div>
                   </div>
 
-                  {/* Summary */}
-                  <div className="p-4 bg-blue-50 border border-blue-200/50 rounded-xl">
-                    <h4 className="text-blue-700 font-medium mb-3 flex items-center gap-2">
-                      <BulbOutlined />
-                      Quiz Summary
-                    </h4>
+                  {/* Configuration Summary */}
+                  <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Configuration Summary</h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                       <div>
                         <p className="text-gray-500">Files Selected</p>
@@ -485,7 +565,18 @@ export default function GenerateQuizPage() {
                       <CheckCircleOutlined className="text-green-500" />
                       <span>Generated Quiz Preview</span>
                     </div>
-                    <Tag color="success">{generatedQuiz.questions?.length} Questions Generated</Tag>
+                    <div className="flex items-center gap-2">
+                      <Tag color="success">{generatedQuiz.questions?.length} Questions</Tag>
+                      <Button
+                        type="primary"
+                        icon={<PlusOutlined />}
+                        onClick={handleAddQuestion}
+                        className="bg-gradient-to-r from-blue-600 to-indigo-600 border-0"
+                        style={{ background: 'linear-gradient(to right, rgb(37, 99, 235), rgb(79, 70, 229))' }}
+                      >
+                        Add Question
+                      </Button>
+                    </div>
                   </div>
                 }
               >
@@ -507,12 +598,86 @@ export default function GenerateQuizPage() {
                     </div>
                   </div>
 
+                  {/* Edit/Add Question Form */}
+                  {(editingQuestionIndex !== null || isAddingQuestion) && questionForm && (
+                    <Card 
+                      className="border-2 border-blue-500 shadow-lg"
+                      title={
+                        <div className="flex items-center gap-2">
+                          <Edit3 className="w-5 h-5 text-blue-600" />
+                          <span>{isAddingQuestion ? 'Add New Question' : `Edit Question ${editingQuestionIndex + 1}`}</span>
+                        </div>
+                      }
+                    >
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-gray-700 font-medium mb-2">Question Text</label>
+                          <TextArea
+                            value={questionForm.question}
+                            onChange={(e) => updateQuestionFormField('question', e.target.value)}
+                            placeholder="Enter your question here..."
+                            rows={3}
+                            className="border-gray-300"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-gray-700 font-medium mb-2">Answer Options</label>
+                          <div className="space-y-2">
+                            {questionForm.options.map((option, idx) => (
+                              <div key={idx} className="flex items-center gap-2">
+                                <Radio
+                                  checked={questionForm.correctAnswer === idx}
+                                  onChange={() => updateQuestionFormField('correctAnswer', idx)}
+                                />
+                                <Input
+                                  value={option}
+                                  onChange={(e) => updateQuestionOption(idx, e.target.value)}
+                                  placeholder={`Option ${String.fromCharCode(65 + idx)}`}
+                                  className="flex-1"
+                                  prefix={<span className="font-semibold text-gray-500">{String.fromCharCode(65 + idx)}.</span>}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                          <p className="text-xs text-gray-500 mt-2">Select the radio button next to the correct answer</p>
+                        </div>
+
+                        <div>
+                          <label className="block text-gray-700 font-medium mb-2">Explanation (Optional)</label>
+                          <TextArea
+                            value={questionForm.explanation}
+                            onChange={(e) => updateQuestionFormField('explanation', e.target.value)}
+                            placeholder="Add an explanation for the correct answer..."
+                            rows={2}
+                            className="border-gray-300"
+                          />
+                        </div>
+
+                        <div className="flex gap-2 justify-end">
+                          <Button onClick={handleCancelEdit}>
+                            Cancel
+                          </Button>
+                          <Button 
+                            type="primary"
+                            icon={<SaveOutlined />}
+                            onClick={handleSaveQuestion}
+                            className="bg-gradient-to-r from-green-600 to-emerald-600 border-0"
+                            style={{ background: 'linear-gradient(to right, rgb(22, 163, 74), rgb(16, 185, 129))' }}
+                          >
+                            Save Question
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
+                  )}
+
                   {/* Questions Preview */}
                   <div className="max-h-96 overflow-y-auto space-y-3 pr-2">
                     {generatedQuiz.questions?.map((q, idx) => (
                       <div
                         key={idx}
-                        className="p-4 bg-gray-50 rounded-xl border border-gray-200"
+                        className="p-4 bg-gray-50 rounded-xl border border-gray-200 hover:border-blue-300 transition-all"
                       >
                         <div className="flex items-start gap-3">
                           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
@@ -544,6 +709,23 @@ export default function GenerateQuizPage() {
                                 {q.explanation}
                               </div>
                             )}
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            <Button
+                              type="text"
+                              icon={<EditOutlined />}
+                              onClick={() => handleEditQuestion(idx)}
+                              className="text-blue-600 hover:bg-blue-50"
+                              size="small"
+                            />
+                            <Button
+                              type="text"
+                              icon={<DeleteOutlined />}
+                              onClick={() => handleDeleteQuestion(idx)}
+                              className="text-red-600 hover:bg-red-50"
+                              danger
+                              size="small"
+                            />
                           </div>
                         </div>
                       </div>

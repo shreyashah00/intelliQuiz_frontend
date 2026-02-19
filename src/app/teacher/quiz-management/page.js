@@ -124,14 +124,25 @@ export default function QuizManagementPage() {
     });
   };
 
-  const handlePublish = async (quizId, currentStatus) => {
+  const handlePublish = async (quizId) => {
     try {
       await quizAPI.publishQuiz(quizId);
-      message.success(currentStatus ? 'Quiz unpublished' : 'Quiz published successfully');
+      message.success('Quiz published successfully');
       fetchQuizzes();
     } catch (error) {
       console.error('Error publishing quiz:', error);
-      message.error(error.response?.data?.message || 'Failed to update quiz status');
+      message.error(error.response?.data?.message || 'Failed to publish quiz');
+    }
+  };
+
+  const handleUnpublish = async (quizId) => {
+    try {
+      await quizAPI.unpublishQuiz(quizId);
+      message.success('Quiz unpublished successfully');
+      fetchQuizzes();
+    } catch (error) {
+      console.error('Error unpublishing quiz:', error);
+      message.error(error.response?.data?.message || 'Failed to unpublish quiz');
     }
   };
 
@@ -251,48 +262,65 @@ export default function QuizManagementPage() {
     totalQuestions: quizzes.reduce((sum, q) => sum + (q.TotalQuestions || 0), 0)
   };
 
-  const getActionItems = (record) => [
-    {
-      key: 'view',
-      icon: <EyeOutlined />,
-      label: 'Preview Quiz',
-      onClick: () => router.push(`/quiz/${record.QuizID}`)
-    },
-    {
-      key: 'responses',
-      icon: <BarChartOutlined />,
-      label: 'View Responses',
-      onClick: () => viewResponses(record)
-    },
-    {
-      key: 'link',
-      icon: <LinkOutlined />,
-      label: 'Share Link',
-      onClick: () => handleGenerateLink(record)
-    },
-    {
-      key: 'publish-groups',
-      icon: <TeamOutlined />,
-      label: 'Publish to Groups',
-      onClick: () => openPublishToGroupsModal(record)
-    },
-    {
-      key: 'publish',
-      icon: record.IsPublished ? <ClockCircleOutlined /> : <CheckCircleOutlined />,
-      label: record.IsPublished ? 'Unpublish' : 'Publish',
-      onClick: () => handlePublish(record.QuizID, record.IsPublished)
-    },
-    {
-      type: 'divider'
-    },
-    {
-      key: 'delete',
-      icon: <DeleteOutlined />,
-      label: 'Delete Quiz',
-      danger: true,
-      onClick: () => handleDelete(record.QuizID)
+  const getActionItems = (record) => {
+    const items = [
+      {
+        key: 'view',
+        icon: <EyeOutlined />,
+        label: 'Preview Quiz',
+        onClick: () => router.push(`/quiz/${record.QuizID}`)
+      },
+      {
+        key: 'edit',
+        icon: <EditOutlined />,
+        label: 'Edit Quiz',
+        onClick: () => router.push(`/teacher/quiz-management/edit/${record.QuizID}`)
+      },
+      {
+        key: 'responses',
+        icon: <BarChartOutlined />,
+        label: 'View Responses',
+        onClick: () => viewResponses(record)
+      },
+      {
+        key: 'link',
+        icon: <LinkOutlined />,
+        label: 'Share Link',
+        onClick: () => handleGenerateLink(record)
+      },
+      {
+        key: 'publish-groups',
+        icon: <TeamOutlined />,
+        label: 'Publish to Groups',
+        onClick: () => openPublishToGroupsModal(record)
+      }
+    ];
+
+    // Add unpublish option if quiz is published
+    if (record.IsPublished) {
+      items.push({
+        key: 'unpublish',
+        icon: <ClockCircleOutlined />,
+        label: 'Unpublish',
+        onClick: () => handleUnpublish(record.QuizID)
+      });
     }
-  ];
+
+    items.push(
+      {
+        type: 'divider'
+      },
+      {
+        key: 'delete',
+        icon: <DeleteOutlined />,
+        label: 'Delete Quiz',
+        danger: true,
+        onClick: () => handleDelete(record.QuizID)
+      }
+    );
+
+    return items;
+  };
 
   const columns = [
     {

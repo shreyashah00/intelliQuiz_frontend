@@ -117,6 +117,7 @@ export const quizAPI = {
 
   // Publish/Unpublish quiz
   publishQuiz: (quizId) => api.patch(`/quizzes/${quizId}/publish`),
+  unpublishQuiz: (quizId) => api.put(`/quizzes/${quizId}/unpublish`),
 
   // Group publishing
   publishToGroups: (data) => api.post('/quizzes/publish-to-groups', data),

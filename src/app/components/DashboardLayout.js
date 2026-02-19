@@ -82,7 +82,9 @@ export default function DashboardLayout({ children, role }) {
     { name: 'Profile', href: '/admin/profile', icon: User },
   ];
 
-  const navItems = role === 'admin' ? adminNavItems : (role === 'teacher' ? teacherNavItems : studentNavItems);
+  // Use role prop if provided, otherwise use user.role from auth store
+  const userRole = role || user?.role;
+  const navItems = userRole === 'admin' ? adminNavItems : (userRole === 'teacher' ? teacherNavItems : studentNavItems);
 
   const handleLogout = async () => {
     await logout();
@@ -120,7 +122,7 @@ export default function DashboardLayout({ children, role }) {
                   <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                     IntelliQuiz
                   </h1>
-                  <p className="text-xs text-gray-600 capitalize">{role} Dashboard</p>
+                  <p className="text-xs text-gray-600 capitalize">{userRole} Dashboard</p>
                 </div>
               </div>
             </div>
@@ -148,7 +150,7 @@ export default function DashboardLayout({ children, role }) {
                   </div>
                   <div className="hidden md:block text-left">
                     <p className="text-sm font-semibold text-gray-900">{user?.FirstName || user?.Username}</p>
-                    <p className="text-xs text-gray-600 capitalize">{role}</p>
+                    <p className="text-xs text-gray-600 capitalize">{userRole}</p>
                   </div>
                   <ChevronDown className="w-4 h-4 text-gray-600" />
                 </button>
@@ -156,7 +158,7 @@ export default function DashboardLayout({ children, role }) {
                 {profileDropdown && (
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-200/50 py-2">
                     <Link
-                      href={`/${role}/profile`}
+                      href={`/${userRole}/profile`}
                       className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 transition-colors"
                       onClick={() => setProfileDropdown(false)}
                     >
