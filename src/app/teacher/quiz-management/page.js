@@ -38,7 +38,9 @@ import {
   CheckCircleOutlined,
   ClockCircleOutlined,
   QuestionCircleOutlined,
-  TeamOutlined
+  TeamOutlined,
+  FilePdfOutlined,
+  DownloadOutlined
 } from '@ant-design/icons';
 import { BookOpen, Brain, FileText, Sparkles, Users } from 'lucide-react';
 import ProtectedRoute from '../../components/ProtectedRoute';
@@ -245,6 +247,204 @@ export default function QuizManagementPage() {
     }
   };
 
+  const handleExportToPDF = async (quiz) => {
+    try {
+      message.loading({ content: 'Generating PDF...', key: 'export-pdf' });
+      
+      // Dynamically import jsPDF to avoid SSR issues
+      const { default: jsPDF } = await import('jspdf');
+      await import('jspdf-autotable');
+      
+      // Function to sanitize text for PDF (remove or replace unsupported characters)
+      const sanitizeText = (text) => {
+        if (!text) return '';
+        // Convert to string and replace problematic characters
+        return String(text)
+          .replace(/[\u0080-\uFFFF]/g, (char) => {
+            // Keep common characters, replace others
+            const charCode = char.charCodeAt(0);
+            // Keep Latin Extended, common punctuation
+            if (charCode < 256) return char;
+            
+            // Replace common special characters with ASCII equivalents
+            const replacements = {
+              '\u00D7': 'x',  // multiplication sign
+              '\u00F7': '/',  // division sign
+              '\u2013': '-',  // en dash
+              '\u2014': '-',  // em dash
+              '\u2018': "'",  // left single quote
+              '\u2019': "'",  // right single quote
+              '\u201C': '"',  // left double quote
+              '\u201D': '"',  // right double quote
+              '\u2022': '*',  // bullet
+              '\u2260': '!=', // not equal
+              '\u2264': '<=', // less than or equal
+              '\u2265': '>=', // greater than or equal
+              '\u00B2': '2',  // superscript 2
+              '\u00B3': '3',  // superscript 3
+              '\u00B9': '1',  // superscript 1
+              '\u221A': 'sqrt', // square root
+              '\u03C0': 'pi',   // pi
+              '\u00B0': ' deg', // degree
+              '\u2212': '-',    // minus sign
+            };
+            
+            return replacements[char] || '?';
+          })
+          .replace(/[^\x20-\x7E\u00A0-\u00FF]/g, '?'); // Keep ASCII and Latin-1, replace others
+      };
+      
+      // Fetch full quiz details with questions
+      const response = await quizAPI.getQuizById(quiz.QuizID);
+      const quizData = response.data.data;
+      
+      // Log the data for debugging
+      console.log('Quiz data for export:', quizData);
+      
+      // Get questions array (backend returns 'Questions' with capital Q)
+      const questions = quizData.Questions || quizData.questions || [];
+      
+      // Create PDF document
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      let yPosition = 20;
+      
+      // Add title
+      doc.setFontSize(20);
+      doc.setTextColor(79, 70, 229); // Indigo color
+      doc.text(sanitizeText(quizData.Title || quiz.Title), pageWidth / 2, yPosition, { align: 'center' });
+      yPosition += 10;
+      
+      // Add quiz metadata
+      doc.setFontSize(10);
+      doc.setTextColor(107, 114, 128); // Gray color
+      const metadata = [
+        `Subject: ${sanitizeText(quizData.Subject || 'N/A')}`,
+        `Total Questions: ${questions.length}`,
+        `Created: ${new Date(quizData.CreatedAt).toLocaleDateString()}`
+      ].join('  |  ');
+      doc.text(metadata, pageWidth / 2, yPosition, { align: 'center' });
+      yPosition += 15;
+      
+      // Add description if available
+      if (quizData.Description) {
+        doc.setFontSize(10);
+        doc.setTextColor(55, 65, 81);
+        const splitDescription = doc.splitTextToSize(sanitizeText(quizData.Description), pageWidth - 40);
+        doc.text(splitDescription, 20, yPosition);
+        yPosition += (splitDescription.length * 5) + 10;
+      }
+      
+      // Add questions
+      if (questions && questions.length > 0) {
+        questions.forEach((question, index) => {
+          // Check if we need a new page
+          if (yPosition > pageHeight - 60) {
+            doc.addPage();
+            yPosition = 20;
+          }
+          
+          // Question number and text
+          doc.setFontSize(12);
+          doc.setTextColor(31, 41, 55); // Dark gray
+          doc.setFont(undefined, 'bold');
+          const questionHeader = `Question ${index + 1}:`;
+          doc.text(questionHeader, 20, yPosition);
+          yPosition += 7;
+          
+          doc.setFont(undefined, 'normal');
+          doc.setFontSize(10);
+          const questionText = question.QuestionText || question.Question || 'No question text';
+          const splitQuestion = doc.splitTextToSize(sanitizeText(questionText), pageWidth - 40);
+          doc.text(splitQuestion, 20, yPosition);
+          yPosition += (splitQuestion.length * 5) + 5;
+          
+          // Question metadata
+          doc.setFontSize(9);
+          doc.setTextColor(107, 114, 128);
+          const questionType = question.QuestionType || question.Type || 'N/A';
+          
+          const options = question.Options || question.options || [];
+          
+          // Options
+          if (options && options.length > 0) {
+            options.forEach((option, optIndex) => {
+              if (yPosition > pageHeight - 20) {
+                doc.addPage();
+                yPosition = 20;
+              }
+              
+              doc.setFontSize(10);
+              // Check if this option is correct
+              const isCorrect = option.IsCorrect || option.isCorrect || false;
+              
+              if (isCorrect) {
+                doc.setTextColor(22, 163, 74); // Green for correct answer
+                doc.setFont(undefined, 'bold');
+              } else {
+                doc.setTextColor(75, 85, 99); // Gray for other options
+                doc.setFont(undefined, 'normal');
+              }
+              
+              const optionLabel = String.fromCharCode(65 + optIndex); // A, B, C, D
+              const optionTextValue = option.OptionText || option.text || option;
+              const optionText = `   ${optionLabel}. ${sanitizeText(optionTextValue)}`;
+              const splitOption = doc.splitTextToSize(optionText, pageWidth - 40);
+              doc.text(splitOption, 20, yPosition);
+              yPosition += (splitOption.length * 5) + 2;
+              
+              if (isCorrect) {
+                doc.setFontSize(8);
+                doc.setTextColor(22, 163, 74);
+                doc.text('      [Correct Answer]', 20, yPosition);
+                yPosition += 5;
+              }
+            });
+          }
+          
+          // Add spacing between questions
+          yPosition += 5;
+          
+          // Draw separator line
+          if (index < questions.length - 1) {
+            doc.setDrawColor(229, 231, 235);
+            doc.line(20, yPosition, pageWidth - 20, yPosition);
+            yPosition += 7;
+          }
+        });
+      } else {
+        // If no questions found, show a message in the PDF
+        doc.setFontSize(12);
+        doc.setTextColor(156, 163, 175);
+        doc.text('No questions available in this quiz.', pageWidth / 2, yPosition, { align: 'center' });
+      }
+      
+      // Add footer on each page
+      const totalPages = doc.internal.pages.length - 1;
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(156, 163, 175);
+        doc.text(
+          `Generated by IntelliQuiz | Page ${i} of ${totalPages}`,
+          pageWidth / 2,
+          pageHeight - 10,
+          { align: 'center' }
+        );
+      }
+      
+      // Save the PDF
+      const fileName = `${quizData.Title.replace(/[^a-z0-9]/gi, '_')}_${new Date().getTime()}.pdf`;
+      doc.save(fileName);
+      
+      message.success({ content: 'Quiz exported successfully!', key: 'export-pdf' });
+    } catch (error) {
+      console.error('Error exporting quiz to PDF:', error);
+      message.error({ content: 'Failed to export quiz to PDF', key: 'export-pdf' });
+    }
+  };
+
   const filteredQuizzes = quizzes.filter(quiz => {
     const matchesSearch = quiz.Title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          quiz.Subject?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -293,6 +493,12 @@ export default function QuizManagementPage() {
         icon: <TeamOutlined />,
         label: 'Publish to Groups',
         onClick: () => openPublishToGroupsModal(record)
+      },
+      {
+        key: 'export',
+        icon: <FilePdfOutlined />,
+        label: 'Export to PDF',
+        onClick: () => handleExportToPDF(record)
       }
     ];
 
