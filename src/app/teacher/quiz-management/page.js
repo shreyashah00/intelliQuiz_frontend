@@ -70,6 +70,9 @@ export default function QuizManagementPage() {
   const [scheduledAt, setScheduledAt] = useState(null);
   const [scheduledQuizzes, setScheduledQuizzes] = useState([]);
   const [activeTab, setActiveTab] = useState('all');
+  const [previewModal, setPreviewModal] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewQuiz, setPreviewQuiz] = useState(null);
 
   useEffect(() => {
     fetchQuizzes();
@@ -153,6 +156,27 @@ export default function QuizManagementPage() {
     setSelectedQuizLink(link);
     setSelectedQuiz(quiz);
     setLinkModal(true);
+  };
+
+  const openPreviewQuiz = async (quiz) => {
+    setSelectedQuiz(quiz);
+    setPreviewModal(true);
+    setPreviewLoading(true);
+    setPreviewQuiz(null);
+
+    try {
+      const response = await quizAPI.getQuizById(quiz.QuizID);
+      if (response.data.success) {
+        setPreviewQuiz(response.data.data);
+      } else {
+        message.error('Failed to load quiz preview');
+      }
+    } catch (error) {
+      console.error('Error loading quiz preview:', error);
+      message.error('Failed to load quiz preview');
+    } finally {
+      setPreviewLoading(false);
+    }
   };
 
   const copyLink = () => {
@@ -468,7 +492,7 @@ export default function QuizManagementPage() {
         key: 'view',
         icon: <EyeOutlined />,
         label: 'Preview Quiz',
-        onClick: () => router.push(`/quiz/${record.QuizID}`)
+        onClick: () => openPreviewQuiz(record)
       },
       {
         key: 'edit',
@@ -919,6 +943,98 @@ export default function QuizManagementPage() {
                 },
               ]}
             />
+
+            {/* Share Link Modal */}
+            <Modal
+              title={
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center">
+                    <EyeOutlined className="text-white text-lg" />
+                  </div>
+                  <div>
+                    <h3 className="text-gray-900 font-semibold m-0">Quiz Preview</h3>
+                    <p className="text-gray-500 text-sm m-0">{selectedQuiz?.Title}</p>
+                  </div>
+                </div>
+              }
+              open={previewModal}
+              onCancel={() => {
+                setPreviewModal(false);
+                setPreviewQuiz(null);
+              }}
+              footer={null}
+              centered
+              width={900}
+            >
+              {previewLoading ? (
+                <div className="py-12 text-center">
+                  <Spin size="large" />
+                  <p className="text-gray-500 mt-4">Loading quiz preview...</p>
+                </div>
+              ) : previewQuiz ? (
+                <div className="pt-4 space-y-5 max-h-[70vh] overflow-y-auto pr-1">
+                  <div className="p-4 rounded-lg border border-indigo-100 bg-indigo-50/50">
+                    <h4 className="text-lg font-semibold text-gray-900">{previewQuiz.Title}</h4>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {previewQuiz.Description || previewQuiz.Subject || 'No description available'}
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Tag color="blue">{previewQuiz.Subject || 'General'}</Tag>
+                      <Tag color="purple">{previewQuiz.Difficulty || 'N/A'}</Tag>
+                      <Tag color="cyan">{previewQuiz.TimeLimit || 0} min</Tag>
+                      <Tag color="gold">{previewQuiz.Questions?.length || 0} questions</Tag>
+                    </div>
+                  </div>
+
+                  {(previewQuiz.Questions || []).length > 0 ? (
+                    <div className="space-y-4">
+                      {previewQuiz.Questions.map((question, index) => (
+                        <div
+                          key={question.QuestionID || `q-${index}`}
+                          className="p-4 border border-gray-200 rounded-lg bg-white"
+                        >
+                          <div className="flex items-center justify-between gap-3 mb-3">
+                            <p className="font-semibold text-gray-900">
+                              Q{index + 1}. {question.QuestionText || question.Question || 'Untitled question'}
+                            </p>
+                            <Tag color="geekblue">{question.Points || 1} pt</Tag>
+                          </div>
+
+                          {(question.Options || []).length > 0 ? (
+                            <div className="space-y-2">
+                              {question.Options.map((option, optionIndex) => {
+                                const optionText = option.OptionText || option.text || String(option);
+                                const isCorrect = option.IsCorrect || option.isCorrect;
+                                return (
+                                  <div
+                                    key={option.OptionID || `opt-${optionIndex}`}
+                                    className={`px-3 py-2 rounded-md border text-sm ${
+                                      isCorrect
+                                        ? 'border-green-200 bg-green-50 text-green-800'
+                                        : 'border-gray-200 bg-gray-50 text-gray-700'
+                                    }`}
+                                  >
+                                    <span className="font-medium mr-2">{String.fromCharCode(65 + optionIndex)}.</span>
+                                    {optionText}
+                                    {isCorrect && <span className="ml-2 text-xs font-semibold">(Correct)</span>}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-gray-500">No options available for this question.</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <Empty description={<span className="text-gray-500">No questions available in this quiz</span>} />
+                  )}
+                </div>
+              ) : (
+                <Empty description={<span className="text-gray-500">Unable to preview this quiz right now</span>} />
+              )}
+            </Modal>
 
             {/* Share Link Modal */}
             <Modal

@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { User, Mail, Phone, MapPin, ArrowLeft, Save } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import ProtectedRoute from '../../components/ProtectedRoute';
+import DashboardLayout from '../../components/DashboardLayout';
 import { userAPI } from '../../../utils/api';
 import useAuthStore from '../../../store/authStore';
 
@@ -69,9 +70,11 @@ export default function StudentProfilePage() {
   if (loading) {
     return (
       <ProtectedRoute allowedRoles={['student']}>
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-purple-600"></div>
-        </div>
+        <DashboardLayout role="student">
+          <div className="flex items-center justify-center min-h-[60vh]">
+            <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-blue-600"></div>
+          </div>
+        </DashboardLayout>
       </ProtectedRoute>
     );
   }
@@ -79,56 +82,58 @@ export default function StudentProfilePage() {
   if (error && !profile) {
     return (
       <ProtectedRoute allowedRoles={['student']}>
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-          <div className="text-center">
-            <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-8 max-w-md">
-              <h2 className="text-xl font-bold text-red-400 mb-2">Error Loading Profile</h2>
-              <p className="text-slate-300 mb-4">{error}</p>
-              <button
-                onClick={fetchProfile}
-                className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-all"
-              >
-                Try Again
-              </button>
-              <button
-                onClick={() => router.push('/student')}
-                className="ml-2 px-6 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-all"
-              >
-                Back to Dashboard
-              </button>
+        <DashboardLayout role="student">
+          <div className="flex items-center justify-center min-h-[60vh]">
+            <div className="text-center">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-8 max-w-md w-full">
+                <h2 className="text-xl font-bold text-red-600 mb-2">Error Loading Profile</h2>
+                <p className="text-red-700 mb-4">{error}</p>
+                <button
+                  onClick={fetchProfile}
+                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all"
+                >
+                  Try Again
+                </button>
+                <button
+                  onClick={() => router.push('/student')}
+                  className="ml-2 px-6 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg transition-all"
+                >
+                  Back to Dashboard
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </DashboardLayout>
       </ProtectedRoute>
     );
   }
 
   return (
     <ProtectedRoute allowedRoles={['student']}>
-      <div className="min-h-screen pt-16 bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-        <div className="max-w-4xl mx-auto px-4 py-10">
+      <DashboardLayout role="student">
+        <div className="max-w-4xl mx-auto space-y-6">
           <button
             onClick={() => router.back()}
-            className="flex items-center gap-2 text-slate-400 hover:text-white transition mb-6"
+            className="flex items-center gap-2 text-gray-500 hover:text-blue-600 transition"
           >
             <ArrowLeft className="w-4 h-4" />
             Back to Dashboard
           </button>
 
-          <div className="bg-slate-800/50 backdrop-blur-xl border border-indigo-500/30 rounded-2xl shadow-2xl p-8">
+          <div className="bg-white border border-blue-100 rounded-2xl shadow-xl p-8">
             <div className="flex justify-between items-center mb-6">
-              <h1 className="text-3xl font-bold text-white">My Profile</h1>
+              <h1 className="text-3xl font-bold text-blue-900">My Profile</h1>
               {isEditing ? (
                 <button
                   onClick={() => setIsEditing(false)}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg text-sm font-medium"
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors"
                 >
                   Cancel
                 </button>
               ) : (
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium"
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
                 >
                   Edit Profile
                 </button>
@@ -136,13 +141,13 @@ export default function StudentProfilePage() {
             </div>
 
             {error && (
-              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg text-sm">
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm">
                 {error}
               </div>
             )}
 
             {success && (
-              <div className="mb-4 p-3 bg-green-500/10 border border-green-500/30 text-green-400 rounded-lg text-sm">
+              <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">
                 {success}
               </div>
             )}
@@ -150,7 +155,7 @@ export default function StudentProfilePage() {
             <form onSubmit={handleSave} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     <User className="w-4 h-4 inline mr-2" />
                     First Name
                   </label>
@@ -160,12 +165,12 @@ export default function StudentProfilePage() {
                     value={profile?.FirstName || ''}
                     onChange={handleChange}
                     disabled={!isEditing}
-                    className="w-full px-4 py-3 bg-slate-900/60 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-60"
+                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 transition-colors"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     <User className="w-4 h-4 inline mr-2" />
                     Last Name
                   </label>
@@ -175,12 +180,12 @@ export default function StudentProfilePage() {
                     value={profile?.LastName || ''}
                     onChange={handleChange}
                     disabled={!isEditing}
-                    className="w-full px-4 py-3 bg-slate-900/60 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-60"
+                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 transition-colors"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     <Mail className="w-4 h-4 inline mr-2" />
                     Email
                   </label>
@@ -188,12 +193,12 @@ export default function StudentProfilePage() {
                     type="email"
                     value={profile?.Email || ''}
                     disabled
-                    className="w-full px-4 py-3 bg-slate-900/60 border border-slate-700 rounded-lg text-slate-400 opacity-60"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg text-gray-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     <User className="w-4 h-4 inline mr-2" />
                     Username
                   </label>
@@ -201,12 +206,12 @@ export default function StudentProfilePage() {
                     type="text"
                     value={profile?.Username || ''}
                     disabled
-                    className="w-full px-4 py-3 bg-slate-900/60 border border-slate-700 rounded-lg text-slate-400 opacity-60"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg text-gray-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     <Phone className="w-4 h-4 inline mr-2" />
                     Phone Number
                   </label>
@@ -216,12 +221,12 @@ export default function StudentProfilePage() {
                     value={profile?.PhoneNumber || ''}
                     onChange={handleChange}
                     disabled={!isEditing}
-                    className="w-full px-4 py-3 bg-slate-900/60 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-60"
+                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 transition-colors"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     <MapPin className="w-4 h-4 inline mr-2" />
                     City
                   </label>
@@ -231,13 +236,13 @@ export default function StudentProfilePage() {
                     value={profile?.City || ''}
                     onChange={handleChange}
                     disabled={!isEditing}
-                    className="w-full px-4 py-3 bg-slate-900/60 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-60"
+                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 transition-colors"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Bio
                 </label>
                 <textarea
@@ -246,7 +251,7 @@ export default function StudentProfilePage() {
                   onChange={handleChange}
                   disabled={!isEditing}
                   rows="4"
-                  className="w-full px-4 py-3 bg-slate-900/60 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-60"
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 transition-colors"
                   placeholder="Tell us about yourself..."
                 />
               </div>
@@ -256,7 +261,7 @@ export default function StudentProfilePage() {
                   <button
                     type="submit"
                     disabled={saving}
-                    className="flex-1 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:shadow-lg transition disabled:opacity-50"
+                    className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm hover:shadow-md transition-all disabled:opacity-50"
                   >
                     <Save className="w-4 h-4 inline mr-2" />
                     {saving ? 'Saving...' : 'Save Changes'}
@@ -264,7 +269,7 @@ export default function StudentProfilePage() {
                   <button
                     type="button"
                     onClick={handleCancel}
-                    className="px-6 py-3 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition"
+                    className="px-6 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                   >
                     Cancel
                   </button>
@@ -273,7 +278,7 @@ export default function StudentProfilePage() {
             </form>
           </div>
         </div>
-      </div>
+      </DashboardLayout>
     </ProtectedRoute>
   );
 }

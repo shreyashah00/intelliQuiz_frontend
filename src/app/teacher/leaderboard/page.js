@@ -1,17 +1,21 @@
 'use client';
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import DashboardLayout from '../../components/DashboardLayout';
 import QuizLeaderboard from '../../components/leaderboard/QuizLeaderboard';
 import GroupLeaderboard from '../../components/leaderboard/GroupLeaderboard';
-import RecentSubmissions from '../../components/leaderboard/RecentSubmissions';
 import { leaderboardAPI, quizAPI, groupAPI } from '../../../utils/api';
-import { initializeSocket, subscribeToSubmissionNotifications, subscribeToLeaderboardUpdates, disconnectSocket, joinQuizRoom } from '../../../utils/socket';
+import {
+  initializeSocket,
+  subscribeLiveActivities,
+  unsubscribeLiveActivities,
+  subscribeToSocketEvent,
+  disconnectSocket,
+  authenticateSocket,
+} from '../../../utils/socket';
 import {
   Trophy,
   Users,
-  Activity,
   RefreshCw,
   Filter,
   TrendingUp,
@@ -19,13 +23,11 @@ import {
 } from 'lucide-react';
 
 export default function TeacherLeaderboard() {
-  const router = useRouter();
-  const [activeTab, setActiveTab] = useState('recent');
+  const [activeTab, setActiveTab] = useState('quiz');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   
   // Data states
-  const [recentSubmissions, setRecentSubmissions] = useState([]);
   const [quizLeaderboards, setQuizLeaderboards] = useState([]);
   const [groupLeaderboards, setGroupLeaderboards] = useState([]);
   
@@ -37,15 +39,80 @@ export default function TeacherLeaderboard() {
   
   // Socket connection state
   const [socketConnected, setSocketConnected] = useState(false);
+  const [socketAuthenticated, setSocketAuthenticated] = useState(false);
+
+  const quizCursorRef = useRef(null);
+  const groupCursorRef = useRef(null);
+  const activeSubscriptionRef = useRef(null);
+  const socketUnsubscribersRef = useRef([]);
+  const selectedQuizRef = useRef('');
+  const selectedGroupRef = useRef('');
+
+  useEffect(() => {
+    selectedQuizRef.current = selectedQuiz;
+  }, [selectedQuiz]);
+
+  useEffect(() => {
+    selectedGroupRef.current = selectedGroup;
+  }, [selectedGroup]);
 
   useEffect(() => {
     fetchInitialData();
-    setupRealtimeUpdates();
+    const cleanup = setupRealtimeUpdates();
 
     return () => {
+      if (typeof cleanup === 'function') {
+        cleanup();
+      }
       disconnectSocket();
     };
   }, []);
+
+  useEffect(() => {
+    if (!socketConnected || !socketAuthenticated) {
+      return;
+    }
+
+    if (activeSubscriptionRef.current) {
+      unsubscribeLiveActivities(activeSubscriptionRef.current);
+      activeSubscriptionRef.current = null;
+    }
+
+    if (activeTab === 'quiz' && selectedQuiz) {
+      const payload = {
+        connectionType: 'quiz_leaderboard',
+        quizId: Number(selectedQuiz),
+        intervalSeconds: 10,
+        cursorAt: quizCursorRef.current || undefined,
+      };
+      subscribeLiveActivities(payload);
+      activeSubscriptionRef.current = {
+        connectionType: 'quiz_leaderboard',
+        quizId: Number(selectedQuiz),
+      };
+    }
+
+    if (activeTab === 'group' && selectedGroup) {
+      const payload = {
+        connectionType: 'group_leaderboard',
+        groupId: Number(selectedGroup),
+        intervalSeconds: 15,
+        cursorAt: groupCursorRef.current || undefined,
+      };
+      subscribeLiveActivities(payload);
+      activeSubscriptionRef.current = {
+        connectionType: 'group_leaderboard',
+        groupId: Number(selectedGroup),
+      };
+    }
+
+    return () => {
+      if (activeSubscriptionRef.current) {
+        unsubscribeLiveActivities(activeSubscriptionRef.current);
+        activeSubscriptionRef.current = null;
+      }
+    };
+  }, [activeTab, selectedQuiz, selectedGroup, socketConnected, socketAuthenticated]);
 
   const setupRealtimeUpdates = () => {
     try {
@@ -54,28 +121,123 @@ export default function TeacherLeaderboard() {
       socket.on('connect', () => {
         console.log('Leaderboard: Socket connected');
         setSocketConnected(true);
+        setSocketAuthenticated(false);
+        authenticateSocket();
       });
 
       socket.on('disconnect', () => {
         console.log('Leaderboard: Socket disconnected');
         setSocketConnected(false);
+        setSocketAuthenticated(false);
       });
 
-      // Subscribe to submission notifications (for all quizzes)
-      const unsubscribeNotifications = subscribeToSubmissionNotifications((data) => {
-        console.log('New submission notification:', data);
-        handleNewSubmission(data);
+      const unsubscribeSocketAuthenticated = subscribeToSocketEvent('socketAuthenticated', (payload) => {
+        console.log('Socket authenticated:', payload);
+        setSocketAuthenticated(Boolean(payload?.success));
       });
 
-      // Subscribe to leaderboard updates (for specific quiz room)
-      const unsubscribeLeaderboard = subscribeToLeaderboardUpdates((data) => {
-        console.log('Leaderboard update:', data);
-        handleLeaderboardUpdate(data);
+      const unsubscribeSocketAuthError = subscribeToSocketEvent('socketAuthenticationError', (payload) => {
+        console.error('Socket authentication failed:', payload);
+        setSocketAuthenticated(false);
       });
+
+      const unsubscribeLiveSubscribed = subscribeToSocketEvent('liveActivitySubscribed', (payload) => {
+        console.log('Live activity subscribed:', payload);
+        if (payload?.data?.connectionType === 'quiz_leaderboard' && payload?.data?.cursorAt) {
+          quizCursorRef.current = payload.data.cursorAt;
+        }
+        if (payload?.data?.connectionType === 'group_leaderboard' && payload?.data?.cursorAt) {
+          groupCursorRef.current = payload.data.cursorAt;
+        }
+      });
+
+      const unsubscribeQuizActivity = subscribeToSocketEvent('quizLeaderboardActivity', (payload) => {
+        if (!payload?.success || payload?.connectionType !== 'quiz_leaderboard') {
+          return;
+        }
+
+        if (payload?.cursorAt) {
+          quizCursorRef.current = payload.cursorAt;
+        }
+
+        const currentQuizId = Number(selectedQuizRef.current);
+        const activityQuizId = Number(payload?.data?.submissions?.[0]?.quizId || payload?.quizId || 0);
+        const liveSubmissions = Array.isArray(payload?.data?.submissions) ? payload.data.submissions : [];
+
+        if (currentQuizId && activityQuizId && currentQuizId === activityQuizId && liveSubmissions.length > 0) {
+          // Apply incoming websocket data immediately for real-time UX.
+          setQuizLeaderboards((prev) => {
+            const prevList = Array.isArray(prev) ? prev : [];
+            const existingByUser = new Map(prevList.map((item) => [Number(item?.userId || item?.UserID || 0), item]));
+
+            for (const submission of liveSubmissions) {
+              const submissionUserId = Number(submission?.userId || 0);
+              if (!submissionUserId) {
+                continue;
+              }
+
+              existingByUser.set(submissionUserId, {
+                ...existingByUser.get(submissionUserId),
+                ...submission,
+                // Normalize fields used by the leaderboard renderer.
+                timeSpent: submission.timeSpentSeconds ?? submission.timeSpent,
+                timeSpentSeconds: submission.timeSpentSeconds ?? submission.timeSpent,
+                timeSpentFormatted: submission.timeSpentFormatted,
+              });
+            }
+
+            return Array.from(existingByUser.values());
+          });
+
+          return;
+        }
+
+        if (currentQuizId && payload?.hasUpdates) {
+          fetchQuizLeaderboard(currentQuizId, { skipSubscribe: true });
+        }
+      });
+
+      const unsubscribeQuizNoResponse = subscribeToSocketEvent('quizLeaderboardNoResponse', (payload) => {
+        if (payload?.cursorAt) {
+          quizCursorRef.current = payload.cursorAt;
+        }
+      });
+
+      const unsubscribeGroupActivity = subscribeToSocketEvent('groupLeaderboardActivity', (payload) => {
+        if (!payload?.success || payload?.connectionType !== 'group_leaderboard') {
+          return;
+        }
+
+        if (payload?.cursorAt) {
+          groupCursorRef.current = payload.cursorAt;
+        }
+
+        if (Number(selectedGroupRef.current) && payload?.hasUpdates) {
+          fetchGroupLeaderboard(Number(selectedGroupRef.current), { skipSubscribe: true });
+        }
+      });
+
+      socketUnsubscribersRef.current = [
+        unsubscribeSocketAuthenticated,
+        unsubscribeSocketAuthError,
+        unsubscribeLiveSubscribed,
+        unsubscribeQuizActivity,
+        unsubscribeQuizNoResponse,
+        unsubscribeGroupActivity,
+      ];
+
+      // Handle race conditions: if socket connected before listeners were attached,
+      // reflect current state and re-send authentication.
+      if (socket.connected) {
+        setSocketConnected(true);
+        authenticateSocket();
+      }
 
       return () => {
-        unsubscribeNotifications();
-        unsubscribeLeaderboard();
+        socket.off('connect');
+        socket.off('disconnect');
+        socketUnsubscribersRef.current.forEach((unsubscribe) => unsubscribe());
+        socketUnsubscribersRef.current = [];
       };
     } catch (error) {
       console.error('Error setting up real-time updates:', error);
@@ -101,9 +263,6 @@ export default function TeacherLeaderboard() {
         setGroups(groupsRes.data.data);
       }
 
-      // Fetch recent submissions
-      await fetchRecentSubmissions();
-
     } catch (error) {
       console.error('Error fetching initial data:', error);
     } finally {
@@ -111,31 +270,7 @@ export default function TeacherLeaderboard() {
     }
   };
 
-  const fetchRecentSubmissions = async (limit = 20) => {
-    try {
-      console.log(`[API Call] GET /api/leaderboard/recent?limit=${limit}`);
-      const response = await leaderboardAPI.getRecentSubmissions(limit);
-      console.log('[API Response] Recent submissions:', response.data);
-      
-      if (response.data.success) {
-        // Recent submissions returns array directly under data
-        const submissions = Array.isArray(response.data.data) 
-          ? response.data.data 
-          : [];
-        console.log('Parsed submissions:', submissions);
-        setRecentSubmissions(submissions);
-      } else {
-        console.error('Recent submissions API returned success=false');
-        setRecentSubmissions([]);
-      }
-    } catch (error) {
-      console.error('Error fetching recent submissions:', error.response?.data || error.message);
-      // Don't show alert for recent submissions, just log it
-      setRecentSubmissions([]);
-    }
-  };
-
-  const fetchQuizLeaderboard = async (quizId) => {
+  const fetchQuizLeaderboard = async (quizId, options = {}) => {
     if (!quizId) {
       console.error('fetchQuizLeaderboard called without quizId');
       return;
@@ -157,11 +292,26 @@ export default function TeacherLeaderboard() {
         console.log('Quiz info:', quizInfo);
         
         setQuizLeaderboards(leaderboardData);
-        setSelectedQuiz(quizId);
+        setSelectedQuiz(Number(quizId));
         setActiveTab('quiz');
-        
-        // Join the quiz room for real-time updates
-        joinQuizRoom(quizId);
+
+        if (!options.skipSubscribe && socketConnected && socketAuthenticated) {
+          if (activeSubscriptionRef.current) {
+            unsubscribeLiveActivities(activeSubscriptionRef.current);
+          }
+
+          subscribeLiveActivities({
+            connectionType: 'quiz_leaderboard',
+            quizId: Number(quizId),
+            intervalSeconds: 10,
+            cursorAt: quizCursorRef.current || undefined,
+          });
+
+          activeSubscriptionRef.current = {
+            connectionType: 'quiz_leaderboard',
+            quizId: Number(quizId),
+          };
+        }
       } else {
         console.error('Quiz leaderboard API returned success=false');
         alert('Failed to load quiz leaderboard: ' + (response.data.message || 'Unknown error'));
@@ -176,7 +326,7 @@ export default function TeacherLeaderboard() {
     }
   };
 
-  const fetchGroupLeaderboard = async (groupId) => {
+  const fetchGroupLeaderboard = async (groupId, options = {}) => {
     if (!groupId) {
       console.error('fetchGroupLeaderboard called without groupId');
       return;
@@ -198,8 +348,26 @@ export default function TeacherLeaderboard() {
         console.log('Group info:', groupInfo);
         
         setGroupLeaderboards(leaderboardData);
-        setSelectedGroup(groupId);
+        setSelectedGroup(Number(groupId));
         setActiveTab('group');
+
+        if (!options.skipSubscribe && socketConnected && socketAuthenticated) {
+          if (activeSubscriptionRef.current) {
+            unsubscribeLiveActivities(activeSubscriptionRef.current);
+          }
+
+          subscribeLiveActivities({
+            connectionType: 'group_leaderboard',
+            groupId: Number(groupId),
+            intervalSeconds: 15,
+            cursorAt: groupCursorRef.current || undefined,
+          });
+
+          activeSubscriptionRef.current = {
+            connectionType: 'group_leaderboard',
+            groupId: Number(groupId),
+          };
+        }
       } else {
         console.error('Group leaderboard API returned success=false');
         alert('Failed to load group leaderboard: ' + (response.data.message || 'Unknown error'));
@@ -214,52 +382,8 @@ export default function TeacherLeaderboard() {
     }
   };
 
-  const handleNewSubmission = (data) => {
-    // Create submission object for recent list
-    const newSubmission = {
-      submissionId: Date.now().toString(),
-      quizId: data.quizId,
-      quizTitle: data.quizTitle || 'Quiz',
-      userId: data.userId,
-      username: data.username || 'Student',
-      fullName: data.fullName || data.username || 'Student',
-      score: data.score,
-      totalScore: data.totalScore,
-      percentage: data.percentage,
-      timeSpent: data.timeSpent || 0,
-      completedAt: data.submittedAt || new Date().toISOString(),
-    };
-
-    // Add to recent submissions list
-    setRecentSubmissions((prev) => {
-      return [newSubmission, ...prev].slice(0, 20);
-    });
-
-    // Refresh current view if viewing this quiz
-    if (activeTab === 'quiz' && selectedQuiz === data.quizId) {
-      fetchQuizLeaderboard(data.quizId);
-    }
-  };
-
-  const handleLeaderboardUpdate = (data) => {
-    console.log('Handling leaderboard update:', data);
-    
-    if (data.type === 'newSubmission') {
-      // Handle leaderboard update for current view
-      if (activeTab === 'quiz' && selectedQuiz) {
-        // Refresh quiz leaderboard
-        fetchQuizLeaderboard(selectedQuiz);
-      } else if (activeTab === 'group' && selectedGroup) {
-        // Refresh group leaderboard  
-        fetchGroupLeaderboard(selectedGroup);
-      }
-    }
-  };
-
   const handleRefresh = () => {
-    if (activeTab === 'recent') {
-      fetchRecentSubmissions();
-    } else if (activeTab === 'quiz' && selectedQuiz) {
+    if (activeTab === 'quiz' && selectedQuiz) {
       fetchQuizLeaderboard(selectedQuiz);
     } else if (activeTab === 'group' && selectedGroup) {
       fetchGroupLeaderboard(selectedGroup);
@@ -267,7 +391,6 @@ export default function TeacherLeaderboard() {
   };
 
   const tabs = [
-    { id: 'recent', label: 'Recent Activity', icon: Activity },
     { id: 'quiz', label: 'Quiz Leaderboard', icon: Trophy },
     { id: 'group', label: 'Group Leaderboard', icon: Users },
   ];
@@ -304,15 +427,15 @@ export default function TeacherLeaderboard() {
               <div className="flex items-center space-x-3">
                 {/* Socket Status */}
                 <div className={`flex items-center space-x-2 px-4 py-2 rounded-lg ${
-                  socketConnected 
+                  socketConnected && socketAuthenticated
                     ? 'bg-green-100 text-green-700' 
                     : 'bg-gray-100 text-gray-500'
                 }`}>
                   <div className={`w-2 h-2 rounded-full ${
-                    socketConnected ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
+                    socketConnected && socketAuthenticated ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
                   }`}></div>
                   <span className="text-sm font-medium">
-                    {socketConnected ? 'Live' : 'Offline'}
+                    {socketConnected && socketAuthenticated ? 'Live' : 'Offline'}
                   </span>
                 </div>
 
@@ -360,7 +483,7 @@ export default function TeacherLeaderboard() {
                 {activeTab === 'quiz' ? (
                   <select
                     value={selectedQuiz}
-                    onChange={(e) => fetchQuizLeaderboard(e.target.value)}
+                    onChange={(e) => fetchQuizLeaderboard(Number(e.target.value))}
                     className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Choose a quiz...</option>
@@ -373,7 +496,7 @@ export default function TeacherLeaderboard() {
                 ) : (
                   <select
                     value={selectedGroup}
-                    onChange={(e) => fetchGroupLeaderboard(e.target.value)}
+                    onChange={(e) => fetchGroupLeaderboard(Number(e.target.value))}
                     className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Choose a group...</option>
@@ -390,15 +513,11 @@ export default function TeacherLeaderboard() {
 
           {/* Content */}
           <div>
-            {activeTab === 'recent' && (
-              <RecentSubmissions data={recentSubmissions} />
-            )}
-
             {activeTab === 'quiz' && (
               selectedQuiz ? (
                 <QuizLeaderboard
                   data={quizLeaderboards}
-                  quizTitle={quizzes.find(q => q.QuizID === selectedQuiz)?.Title}
+                  quizTitle={quizzes.find(q => Number(q.QuizID) === Number(selectedQuiz))?.Title}
                 />
               ) : (
                 <div className="bg-white rounded-2xl shadow-lg p-12 text-center">
@@ -413,7 +532,7 @@ export default function TeacherLeaderboard() {
               selectedGroup ? (
                 <GroupLeaderboard
                   data={groupLeaderboards}
-                  groupName={groups.find(g => g.GroupID === selectedGroup)?.GroupName}
+                  groupName={groups.find(g => Number(g.GroupID) === Number(selectedGroup))?.GroupName || groups.find(g => Number(g.GroupID) === Number(selectedGroup))?.Name}
                 />
               ) : (
                 <div className="bg-white rounded-2xl shadow-lg p-12 text-center">

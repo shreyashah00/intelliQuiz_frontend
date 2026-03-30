@@ -102,32 +102,32 @@ export default function QuizResultPage() {
     }
   };
 
-  const darkTheme = {
-    algorithm: theme.darkAlgorithm,
+  const lightTheme = {
+    algorithm: theme.defaultAlgorithm,
     token: {
-      colorPrimary: '#6366f1',
-      colorBgContainer: 'rgba(30, 41, 59, 0.5)',
-      colorBgElevated: 'rgb(30, 41, 59)',
-      colorBorder: 'rgb(51, 65, 85)',
-      colorText: 'rgb(226, 232, 240)',
-      borderRadius: 8,
+      colorPrimary: '#2563eb',
+      colorBgContainer: '#ffffff',
+      colorBgElevated: '#ffffff',
+      colorBorder: '#bfdbfe',
+      colorText: '#0f172a',
+      borderRadius: 12,
     },
     components: {
       Tabs: {
-        itemSelectedColor: 'white',
-        itemHoverColor: '#a5b4fc',
-        inkBarColor: '#6366f1',
+        itemSelectedColor: '#1d4ed8',
+        itemHoverColor: '#2563eb',
+        inkBarColor: '#2563eb',
       },
       Collapse: {
-        headerBg: 'transparent',
-        contentBg: 'transparent',
+        headerBg: '#eff6ff',
+        contentBg: '#ffffff',
       },
     },
   };
 
   if (!result) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center">
         <Spin size="large" />
       </div>
     );
@@ -136,6 +136,14 @@ export default function QuizResultPage() {
   const scoreNum = parseFloat(result.percentage || result.score);
   const isPassed = scoreNum >= 60;
   const grade = scoreNum >= 90 ? 'A' : scoreNum >= 80 ? 'B' : scoreNum >= 70 ? 'C' : scoreNum >= 60 ? 'D' : 'F';
+  const overallPerformance = insights?.overallPerformance || {};
+  const strengths = overallPerformance.keyStrengths || overallPerformance.strengths || [];
+  const weaknesses = overallPerformance.majorWeaknesses || overallPerformance.weaknesses || [];
+  const recommendationList = Array.isArray(insights?.detailedRecommendations)
+    ? insights.detailedRecommendations.map((rec) => rec.specificAction || rec.expectedImpact).filter(Boolean)
+    : (insights?.recommendations || []);
+  const nextStepList = insights?.learningPath?.immediateActions || insights?.nextSteps || [];
+  const motivationalMessage = insights?.motivationalInsights?.confidenceBuilding || insights?.motivationalMessage;
 
   const tabItems = [
     {
@@ -156,8 +164,8 @@ export default function QuizResultPage() {
               <Trophy className={`w-16 h-16 ${isPassed ? 'text-green-400' : 'text-orange-400'}`} />
             </div>
             
-            <h1 className="text-3xl font-bold text-white mb-2">Quiz Completed!</h1>
-            <p className="text-slate-400 text-lg mb-6">{result.quizTitle}</p>
+            <h1 className="text-3xl font-bold text-blue-900 mb-2">Quiz Completed!</h1>
+            <p className="text-blue-700 text-lg mb-6">{result.quizTitle}</p>
 
             <div className="max-w-xs mx-auto mb-6">
               <Progress
@@ -172,8 +180,8 @@ export default function QuizResultPage() {
                 width={180}
                 format={() => (
                   <div className="text-center">
-                    <div className="text-4xl font-bold text-white">{scoreNum.toFixed(0)}%</div>
-                    <div className="text-slate-400 text-sm mt-1">Your Score</div>
+                    <div className="text-4xl font-bold text-blue-900">{scoreNum.toFixed(0)}%</div>
+                    <div className="text-blue-700 text-sm mt-1">Your Score</div>
                   </div>
                 )}
               />
@@ -192,21 +200,21 @@ export default function QuizResultPage() {
 
           {/* Stats Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card className="bg-slate-900/50 border-slate-700" bordered>
+            <Card className="bg-white border-blue-200" bordered>
               <div className="text-center">
-                <p className="text-slate-400 text-sm mb-1">Total Questions</p>
-                <p className="text-3xl font-bold text-white">{result.totalQuestions}</p>
+                <p className="text-blue-600 text-sm mb-1">Total Questions</p>
+                <p className="text-3xl font-bold text-blue-900">{result.totalQuestions}</p>
               </div>
             </Card>
-            <Card className="bg-slate-900/50 border-green-500/30" bordered>
+            <Card className="bg-white border-green-200" bordered>
               <div className="text-center">
-                <p className="text-slate-400 text-sm mb-1">Correct Answers</p>
+                <p className="text-green-600 text-sm mb-1">Correct Answers</p>
                 <p className="text-3xl font-bold text-green-400">{result.correctAnswers || result.score}</p>
               </div>
             </Card>
-            <Card className="bg-slate-900/50 border-red-500/30" bordered>
+            <Card className="bg-white border-red-200" bordered>
               <div className="text-center">
-                <p className="text-slate-400 text-sm mb-1">Incorrect</p>
+                <p className="text-red-600 text-sm mb-1">Incorrect</p>
                 <p className="text-3xl font-bold text-red-400">
                   {result.totalQuestions - (result.correctAnswers || result.score)}
                 </p>
@@ -235,7 +243,7 @@ export default function QuizResultPage() {
               return (
                 <Card
                   key={question.QuestionID}
-                  className={`bg-slate-900/50 ${
+                  className={`bg-white ${
                     isCorrect ? 'border-green-500/30' : userAnswerId ? 'border-red-500/30' : 'border-orange-500/30'
                   }`}
                   bordered
@@ -250,12 +258,12 @@ export default function QuizResultPage() {
                     )}
                     <div className="flex-1">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-slate-400 font-semibold">Question {idx + 1}</span>
+                        <span className="text-blue-700 font-semibold">Question {idx + 1}</span>
                         <Tag color={isCorrect ? 'success' : userAnswerId ? 'error' : 'warning'}>
                           {isCorrect ? 'Correct' : userAnswerId ? 'Incorrect' : 'Not Answered'}
                         </Tag>
                       </div>
-                      <p className="text-white text-lg mb-4">{question.QuestionText}</p>
+                      <p className="text-gray-900 text-lg mb-4">{question.QuestionText}</p>
 
                       <div className="space-y-2">
                         {question.Options.map((option) => {
@@ -270,7 +278,7 @@ export default function QuizResultPage() {
                                   ? 'bg-green-500/10 border-green-500/50'
                                   : isUserAnswer
                                   ? 'bg-red-500/10 border-red-500/50'
-                                  : 'bg-slate-800/50 border-slate-700'
+                                  : 'bg-blue-50 border-blue-100'
                               }`}
                             >
                               <div className="flex items-center gap-2">
@@ -278,7 +286,7 @@ export default function QuizResultPage() {
                                 {isUserAnswer && !isCorrectAnswer && <CloseCircleOutlined className="text-red-400" />}
                                 <span className={`flex-1 ${
                                   isCorrectAnswer ? 'text-green-400 font-medium' :
-                                  isUserAnswer ? 'text-red-400' : 'text-slate-300'
+                                  isUserAnswer ? 'text-red-400' : 'text-gray-700'
                                 }`}>
                                   {option.OptionText}
                                 </span>
@@ -302,7 +310,7 @@ export default function QuizResultPage() {
             responseDetails.Answers.map((answer, idx) => (
               <Card
                 key={answer.AnswerID}
-                className={`bg-slate-900/50 ${
+                className={`bg-white ${
                   answer.IsCorrect ? 'border-green-500/30' : 'border-red-500/30'
                 }`}
                 bordered
@@ -315,21 +323,21 @@ export default function QuizResultPage() {
                   )}
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-slate-400 font-semibold">Question {idx + 1}</span>
+                      <span className="text-blue-700 font-semibold">Question {idx + 1}</span>
                       <Tag color={answer.IsCorrect ? 'success' : 'error'}>
                         {answer.IsCorrect ? 'Correct' : 'Incorrect'}
                       </Tag>
                     </div>
-                    <p className="text-white text-lg mb-2">{answer.Question?.QuestionText}</p>
-                    <p className="text-slate-400 text-sm">
-                      Points earned: <span className="text-indigo-400 font-medium">{answer.PointsEarned}</span>
+                    <p className="text-gray-900 text-lg mb-2">{answer.Question?.QuestionText}</p>
+                    <p className="text-gray-600 text-sm">
+                      Points earned: <span className="text-blue-600 font-medium">{answer.PointsEarned}</span>
                     </p>
                   </div>
                 </div>
               </Card>
             ))
           ) : (
-            <Empty description={<span className="text-slate-400">No detailed review available</span>} />
+            <Empty description={<span className="text-gray-500">No detailed review available</span>} />
           )}
         </div>
       ),
@@ -346,42 +354,53 @@ export default function QuizResultPage() {
         <div className="space-y-6">
           {insights ? (
             <>
+              <div className="flex justify-end">
+                <Button
+                  icon={<RobotOutlined />}
+                  onClick={generateInsights}
+                  loading={generatingInsights}
+                  className="bg-white border-blue-300 text-blue-700 hover:bg-blue-50"
+                >
+                  {generatingInsights ? 'Regenerating...' : 'Regenerate AI Insights'}
+                </Button>
+              </div>
+
               {/* Overall Performance */}
-              <Card className="bg-gradient-to-br from-indigo-900/30 to-purple-900/30 border-indigo-500/30" bordered>
+              <Card className="bg-gradient-to-br from-blue-50 to-white border-blue-200" bordered>
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="p-3 bg-indigo-500/20 rounded-xl">
-                    <Brain className="w-6 h-6 text-indigo-400" />
+                  <div className="p-3 bg-blue-100 rounded-xl">
+                    <Brain className="w-6 h-6 text-blue-600" />
                   </div>
                   <div>
-                    <h3 className="text-white font-bold text-lg">Overall Performance</h3>
-                    <p className="text-slate-400 text-sm">AI-generated analysis of your quiz attempt</p>
+                    <h3 className="text-blue-900 font-bold text-lg">Overall Performance</h3>
+                    <p className="text-blue-700 text-sm">AI-generated analysis of your quiz attempt</p>
                   </div>
                 </div>
-                <p className="text-slate-300 mb-4">{insights.overallPerformance?.summary}</p>
+                <p className="text-gray-700 mb-4">{overallPerformance?.summary}</p>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-xl">
+                  <div className="p-4 bg-green-50 border border-green-200 rounded-xl">
                     <h4 className="text-green-400 font-semibold mb-2 flex items-center gap-2">
                       <ThunderboltOutlined />
                       Strengths
                     </h4>
                     <ul className="space-y-1">
-                      {insights.overallPerformance?.strengths?.map((s, i) => (
-                        <li key={i} className="text-slate-300 text-sm flex items-start gap-2">
+                      {strengths.map((s, i) => (
+                        <li key={i} className="text-gray-700 text-sm flex items-start gap-2">
                           <CheckCircleOutlined className="text-green-400 mt-0.5" />
                           {s}
                         </li>
                       ))}
                     </ul>
                   </div>
-                  <div className="p-4 bg-orange-500/10 border border-orange-500/30 rounded-xl">
+                  <div className="p-4 bg-orange-50 border border-orange-200 rounded-xl">
                     <h4 className="text-orange-400 font-semibold mb-2 flex items-center gap-2">
                       <WarningOutlined />
                       Areas to Improve
                     </h4>
                     <ul className="space-y-1">
-                      {insights.overallPerformance?.weaknesses?.map((w, i) => (
-                        <li key={i} className="text-slate-300 text-sm flex items-start gap-2">
+                      {weaknesses.map((w, i) => (
+                        <li key={i} className="text-gray-700 text-sm flex items-start gap-2">
                           <BulbOutlined className="text-orange-400 mt-0.5" />
                           {w}
                         </li>
@@ -392,17 +411,17 @@ export default function QuizResultPage() {
               </Card>
 
               {/* Recommendations */}
-              {insights.recommendations && insights.recommendations.length > 0 && (
-                <Card className="bg-slate-900/50 border-purple-500/30" bordered>
-                  <h3 className="text-white font-bold text-lg mb-4 flex items-center gap-2">
-                    <RocketOutlined className="text-purple-400" />
+              {recommendationList && recommendationList.length > 0 && (
+                <Card className="bg-white border-blue-200" bordered>
+                  <h3 className="text-blue-900 font-bold text-lg mb-4 flex items-center gap-2">
+                    <RocketOutlined className="text-blue-600" />
                     Recommendations
                   </h3>
                   <div className="space-y-3">
-                    {insights.recommendations.map((rec, i) => (
-                      <div key={i} className="flex items-start gap-3 p-3 bg-slate-800/50 rounded-lg">
-                        <StarOutlined className="text-purple-400 mt-0.5" />
-                        <p className="text-slate-300">{rec}</p>
+                    {recommendationList.map((rec, i) => (
+                      <div key={i} className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
+                        <StarOutlined className="text-blue-600 mt-0.5" />
+                        <p className="text-gray-700">{rec}</p>
                       </div>
                     ))}
                   </div>
@@ -410,16 +429,16 @@ export default function QuizResultPage() {
               )}
 
               {/* Next Steps */}
-              {insights.nextSteps && insights.nextSteps.length > 0 && (
-                <Card className="bg-slate-900/50 border-blue-500/30" bordered>
-                  <h3 className="text-white font-bold text-lg mb-4 flex items-center gap-2">
-                    <Target className="w-5 h-5 text-blue-400" />
+              {nextStepList && nextStepList.length > 0 && (
+                <Card className="bg-white border-blue-200" bordered>
+                  <h3 className="text-blue-900 font-bold text-lg mb-4 flex items-center gap-2">
+                    <Target className="w-5 h-5 text-blue-600" />
                     Next Steps
                   </h3>
                   <ol className="space-y-2">
-                    {insights.nextSteps.map((step, i) => (
-                      <li key={i} className="flex items-start gap-3 text-slate-300">
-                        <span className="w-6 h-6 bg-blue-500/20 rounded-full flex items-center justify-center text-blue-400 text-sm font-bold shrink-0">
+                    {nextStepList.map((step, i) => (
+                      <li key={i} className="flex items-start gap-3 text-gray-700">
+                        <span className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 text-sm font-bold shrink-0">
                           {i + 1}
                         </span>
                         {step}
@@ -430,22 +449,22 @@ export default function QuizResultPage() {
               )}
 
               {/* Motivational Message */}
-              {insights.motivationalMessage && (
-                <div className="p-4 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border border-indigo-500/30 rounded-xl">
-                  <p className="text-white text-center italic">
-                    "{insights.motivationalMessage}"
+              {motivationalMessage && (
+                <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl">
+                  <p className="text-blue-900 text-center italic">
+                    "{motivationalMessage}"
                   </p>
                 </div>
               )}
             </>
           ) : (
-            <Card className="bg-slate-900/50 border-indigo-500/30" bordered>
+            <Card className="bg-white border-blue-200" bordered>
               <div className="text-center py-8">
-                <div className="p-4 bg-indigo-500/20 rounded-full inline-block mb-4">
-                  <Sparkles className="w-12 h-12 text-indigo-400" />
+                <div className="p-4 bg-blue-100 rounded-full inline-block mb-4">
+                  <Sparkles className="w-12 h-12 text-blue-600" />
                 </div>
-                <h3 className="text-white font-bold text-xl mb-2">Get AI-Powered Insights</h3>
-                <p className="text-slate-400 mb-6 max-w-md mx-auto">
+                <h3 className="text-blue-900 font-bold text-xl mb-2">Get AI-Powered Insights</h3>
+                <p className="text-gray-600 mb-6 max-w-md mx-auto">
                   Generate personalized feedback and recommendations based on your quiz performance
                 </p>
                 <Button
@@ -454,8 +473,8 @@ export default function QuizResultPage() {
                   icon={<RobotOutlined />}
                   onClick={generateInsights}
                   loading={generatingInsights}
-                  className="bg-gradient-to-r from-indigo-600 to-purple-600 border-0"
-                  style={{ background: 'linear-gradient(to right, rgb(79, 70, 229), rgb(147, 51, 234))' }}
+                  className="bg-gradient-to-r from-blue-600 to-indigo-600 border-0"
+                  style={{ background: 'linear-gradient(to right, rgb(37, 99, 235), rgb(67, 56, 202))' }}
                 >
                   {generatingInsights ? 'Generating...' : 'Generate AI Insights'}
                 </Button>
@@ -468,10 +487,10 @@ export default function QuizResultPage() {
   ];
 
   return (
-    <ConfigProvider theme={darkTheme}>
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 py-8 px-4">
+    <ConfigProvider theme={lightTheme}>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 py-8 px-4">
         <div className="max-w-4xl mx-auto space-y-6">
-          <Card className="bg-slate-800/50 border-indigo-500/30" bordered>
+          <Card className="bg-white border-blue-200 shadow-md" bordered>
             <Tabs
               defaultActiveKey="overview"
               items={tabItems}
@@ -487,8 +506,8 @@ export default function QuizResultPage() {
               size="large"
               icon={<HomeOutlined />}
               onClick={() => router.push('/student')}
-              className="bg-gradient-to-r from-indigo-600 to-purple-600 border-0"
-              style={{ background: 'linear-gradient(to right, rgb(79, 70, 229), rgb(147, 51, 234))' }}
+              className="bg-gradient-to-r from-blue-600 to-indigo-600 border-0"
+              style={{ background: 'linear-gradient(to right, rgb(37, 99, 235), rgb(67, 56, 202))' }}
             >
               Back to Dashboard
             </Button>
@@ -496,7 +515,7 @@ export default function QuizResultPage() {
               size="large"
               icon={<ReloadOutlined />}
               onClick={() => router.push(`/quiz/${params.quizId}`)}
-              className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600"
+              className="bg-white border-blue-300 text-blue-700 hover:bg-blue-50"
             >
               Retake Quiz
             </Button>
@@ -506,13 +525,13 @@ export default function QuizResultPage() {
 
       <style jsx global>{`
         .custom-tabs .ant-tabs-nav::before {
-          border-color: rgb(51, 65, 85) !important;
+          border-color: rgb(191, 219, 254) !important;
         }
         .custom-tabs .ant-tabs-tab {
-          color: rgb(148, 163, 184) !important;
+          color: rgb(71, 85, 105) !important;
         }
         .custom-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
-          color: white !important;
+          color: rgb(29, 78, 216) !important;
         }
       `}</style>
     </ConfigProvider>

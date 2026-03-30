@@ -1,13 +1,38 @@
 import { io } from 'socket.io-client';
 import useAuthStore from '../store/authStore';
 
-// const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'https://intelliquiz-backend-4bha.onrender.com';
-const SOCKET_URL = "http://localhost:5000"
+// const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000';
+const SOCKET_URL = "http://localhost:5000";
 
 let socket = null;
 
+const getAuthPayload = () => {
+  const { user } = useAuthStore.getState();
+  const userId = Number(user?.UserID || user?.userId || 0);
+  const role = String(user?.Role || user?.role || '').toLowerCase();
+
+  if (!userId || !role) {
+    return null;
+  }
+
+  return { userId, role };
+};
+
+const emitAuthenticate = () => {
+  const authPayload = getAuthPayload();
+  if (!authPayload || !socket?.connected) {
+    return;
+  }
+
+  socket.emit('authenticate', authPayload);
+  console.log('Socket authenticate emitted:', authPayload);
+};
+
 export const initializeSocket = () => {
-  if (socket?.connected) {
+  if (socket) {
+    if (!socket.connected && !socket.active) {
+      socket.connect();
+    }
     return socket;
   }
 
@@ -20,19 +45,7 @@ export const initializeSocket = () => {
 
   socket.on('connect', () => {
     console.log('Socket connected:', socket.id);
-    
-    // Authenticate after connection
-    const { user } = useAuthStore.getState();
-    if (user?.UserID) {
-      socket.emit('authenticate', user.UserID);
-      console.log('Socket authenticated with userId:', user.UserID);
-      
-      // Join teacher room if user is a teacher
-      if (user.Role === 'teacher') {
-        socket.emit('joinTeacherRoom');
-        console.log('Joined teacher room');
-      }
-    }
+    emitAuthenticate();
   });
 
   socket.on('connect_error', (error) => {
@@ -48,39 +61,49 @@ export const initializeSocket = () => {
 
 export const disconnectSocket = () => {
   if (socket) {
+    socket.removeAllListeners();
     socket.disconnect();
     socket = null;
   }
 };
 
 export const getSocket = () => {
-  if (!socket || !socket.connected) {
-    return initializeSocket();
+  return initializeSocket();
+};
+
+export const authenticateSocket = () => {
+  const currentSocket = getSocket();
+  const authPayload = getAuthPayload();
+
+  if (!authPayload) {
+    console.error('Unable to authenticate socket: missing userId or role');
+    return false;
   }
-  return socket;
+
+  if (!currentSocket.connected) {
+    return false;
+  }
+
+  currentSocket.emit('authenticate', authPayload);
+  return true;
 };
 
-export const joinQuizRoom = (quizId) => {
+export const subscribeLiveActivities = (payload) => {
   const currentSocket = getSocket();
-  currentSocket.emit('joinQuizRoom', quizId);
-  console.log('Joined quiz room:', quizId);
+  currentSocket.emit('subscribeLiveActivities', payload);
 };
 
-export const subscribeToSubmissionNotifications = (callback) => {
+export const unsubscribeLiveActivities = (payload) => {
   const currentSocket = getSocket();
-  currentSocket.on('submissionNotification', callback);
-  
+  currentSocket.emit('unsubscribeLiveActivities', payload);
+};
+
+export const subscribeToSocketEvent = (eventName, callback) => {
+  const currentSocket = getSocket();
+  currentSocket.on(eventName, callback);
+
   return () => {
-    currentSocket.off('submissionNotification', callback);
-  };
-};
-
-export const subscribeToLeaderboardUpdates = (callback) => {
-  const currentSocket = getSocket();
-  currentSocket.on('leaderboardUpdate', callback);
-  
-  return () => {
-    currentSocket.off('leaderboardUpdate', callback);
+    currentSocket.off(eventName, callback);
   };
 };
 
@@ -88,7 +111,8 @@ export default {
   initializeSocket,
   disconnectSocket,
   getSocket,
-  joinQuizRoom,
-  subscribeToSubmissionNotifications,
-  subscribeToLeaderboardUpdates,
+  authenticateSocket,
+  subscribeLiveActivities,
+  unsubscribeLiveActivities,
+  subscribeToSocketEvent,
 };

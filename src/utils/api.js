@@ -1,8 +1,8 @@
 import axios from 'axios';
 import useAuthStore from '../store/authStore';
 
-const API_URL = "https://intelliquiz-backend-4bha.onrender.com/api";
-// const API_URL = "http://localhost:5000/api"
+// const API_URL = "https://intelliquiz-backend-4bha.onrender.com/api";
+const API_URL = "http://localhost:5000/api"
 
 const api = axios.create({
   baseURL: API_URL,
@@ -207,7 +207,7 @@ export const adminAPI = {
   getAllUsers: () => api.get('/admin/users'),
   updateUserStatus: (userId, data) => api.put(`/admin/users/${userId}/status`, data),
   updateUserRole: (userId, data) => api.put(`/admin/users/${userId}/role`, data),
-  createAdminUser: (data) => api.post('/admin/users', data),
+  createAdminUser: (data) => api.post('/create/admin', data),
   
   // System Monitoring
   getSystemStats: () => api.get('/admin/stats'),

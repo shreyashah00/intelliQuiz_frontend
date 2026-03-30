@@ -2,8 +2,26 @@
 import { Clock, Activity, CheckCircle, Target, TrendingUp } from 'lucide-react';
 
 export default function RecentSubmissions({ data }) {
-  const formatTime = (milliseconds) => {
-    const seconds = Math.floor(milliseconds / 1000);
+  const getDurationInSeconds = (submission) => {
+    const raw = Number(
+      submission?.timeSpent ??
+      submission?.TimeSpent ??
+      submission?.timeTaken ??
+      submission?.TimeTaken ??
+      submission?.duration ??
+      submission?.Duration ??
+      0
+    );
+
+    if (!Number.isFinite(raw) || raw <= 0) {
+      return 0;
+    }
+
+    return raw > 24 * 60 * 60 ? Math.floor(raw / 1000) : Math.floor(raw);
+  };
+
+  const formatTime = (totalSeconds) => {
+    const seconds = Math.max(0, Math.floor(totalSeconds));
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
@@ -115,7 +133,7 @@ export default function RecentSubmissions({ data }) {
                   </div>
                   <div className="flex items-center space-x-2 text-gray-600">
                     <Target className="w-4 h-4 text-purple-500" />
-                    <span className="font-medium">{formatTime(submission.timeSpent)}</span>
+                    <span className="font-medium">{formatTime(getDurationInSeconds(submission))}</span>
                     <span className="text-gray-400">time</span>
                   </div>
                 </div>
