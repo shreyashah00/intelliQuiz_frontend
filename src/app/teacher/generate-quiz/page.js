@@ -329,7 +329,37 @@ export default function GenerateQuizPage() {
       <DashboardLayout role="teacher">
         <ConfigProvider theme={lightTheme}>
           <div className="max-w-5xl mx-auto space-y-6">
-            {/* Header */}
+            {/* Manual Quiz Section */}
+            <div className="bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 rounded-2xl p-8 text-white shadow-xl relative overflow-hidden">
+              <div className="absolute inset-0 opacity-20">
+                <div className="absolute w-64 h-64 bg-white rounded-full blur-3xl -top-32 -right-32"></div>
+                <div className="absolute w-48 h-48 bg-white rounded-full blur-3xl -bottom-24 -left-24"></div>
+              </div>
+              <div className="relative">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                      <Edit3 className="w-8 h-8" />
+                    </div>
+                    <div>
+                      <h1 className="text-2xl md:text-3xl font-bold">Create Manual Quiz</h1>
+                      <p className="text-green-100">Build custom quizzes with your own questions</p>
+                    </div>
+                  </div>
+                  <Button
+                    type="primary"
+                    size="large"
+                    icon={<PlusOutlined />}
+                    onClick={() => router.push('/teacher/create-quiz')}
+                    className="bg-white text-green-600 border-white hover:bg-green-50 hover:text-green-700 font-semibold px-6 py-3 h-auto rounded-xl shadow-lg"
+                  >
+                    Create Quiz
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* AI Quiz Header */}
             <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-2xl p-8 text-white shadow-xl relative overflow-hidden">
               <div className="absolute inset-0 opacity-20">
                 <div className="absolute w-64 h-64 bg-white rounded-full blur-3xl -top-32 -right-32"></div>
